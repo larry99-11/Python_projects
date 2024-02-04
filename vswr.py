@@ -1,89 +1,105 @@
 #!/usr/bin/env python3
+
 import os
 import subprocess
 import time
 
-t = 1
+# Delay for 1 second variable
+DELAY = 1
 
-print("################## VSWR #################")
-print("#########################################")
+bash_script_path = "/Users/emmanuelowusu/python_project/fail_txt.sh"
 
+ #Validate the serial number function.
+def validate_serial(serial):
+    if len(serial) != 7:
+        print(f'The SERIAL NUMBER: {serial} is not valid because the maximum number of characters allowed is 7')
+        return False
+    return True
 
-serial_no = input("what is the serial number?: ") 
-print("#########################################")
+#List directory contents in long format function.
+def list_directory_contents(directory):
+    try:
+        ls_output = subprocess.run(['ls', '-lt', directory], capture_output=True, text=True, check=True)
+        return ls_output.stdout.splitlines()
+    except subprocess.CalledProcessError as e:
+        print(f"Error listing directory contents: {e}")
+        return [] #this will retrun an empty array
 
-Serial_Number_Dir = serial_no
-
-dir_path = "test_results/systems/{}/1".format(Serial_Number_Dir)
-
-
-# if numbers are longer/less than 7 chraters return an error
-if len(serial_no) != 7:
-    print(f'The SERIAL NUMBER: {serial_no} is not valid because the maximum number of characters allowed is 7')
-    serial_no = input('please re-enter the serial number: ')
-
-if not os.path.exists(dir_path):
-    print(f'{dir_path} do not exit, exiting script')
-    exit()
-    
-print("#########################################")
-print("         SERIAL_NUMBER:", serial_no)
-print("#########################################")
-
-os.chdir(dir_path)
-
-#once in the directory i want to have a long list the contents i.e files
-print("############ Directory Content #################")
-
-#takes the output of the ls command
-ls_output = subprocess.run(['ls', '-lt'], capture_output=True, text=True)
-
-    #if the ls command was sucessful
-if ls_output.returncode == 0:
-    # Split the output into lines and store in an array
-    directory_contents = ls_output.stdout.splitlines()
-    # Display the array contents with indices i.e numbered options to select from
-    for index, item in enumerate(directory_contents, 1):
-        print(f"{index}. {item}")
-    # Prompt the user to choose a directory
+#Prompt the user to choose a directory function
+def choose_directory(contents):
     while True:
         try:
-            choice = int(input("Enter the number of the directory to change into: "))
-            if 1 <= choice <= len(directory_contents):
-                break
+            choice = int(input("Enter the number of the directory to change into (ignore the '1.' option): "))
+            if 1 <= choice <= len(contents):
+                return contents[choice - 1].split()[-1]
             else:
                 print("Invalid choice. Please enter a valid number.")
         except ValueError:
             print("Invalid input. Please enter a number.")
-            
-    # Extract the directory name from the chosen line
-    chosen_directory = directory_contents[choice - 1].split()[-1]
-    # Change to the chosen directory
+
+ #Execute commands function
+def execute_commands(commands):
+    for command in commands:
+        subprocess.run(command, shell=True)
+
+#function to execute commands and capture output
+def execute_command_with_output(command):
+     result = subprocess.run(command, shell=True, capture_output=True, text=True)
+     if result.returncode == 0:
+        print(result.stdout)
+     else:
+         print(f"Error executing command: {result.stderr}") 
+
+def main():
+    print("################## VSWR #################")
+    print("#########################################")
+
+    serial_no = input("what is the serial number?: ")
+    if not validate_serial(serial_no):
+        print("Invalid serial number. Exiting.")
+        return
+
+    Serial_Number_Dir = serial_no
+    dir_path = f"/Users/emmanuelowusu/python_project/test_results/systems/{Serial_Number_Dir}/1"
+
+    if not os.path.exists(dir_path):
+        print(f'{dir_path} does not exist, exiting script')
+        return
+
+    print("#########################################")
+    print("         SERIAL_NUMBER:", serial_no)
+    print("#########################################")
+
     try:
-        os.chdir(chosen_directory)
+        os.chdir(dir_path)
+        print("############ Directory Content #################")
+        contents = list_directory_contents(dir_path)
+        for index, item in enumerate(contents, 1):
+            print(f"{index}. {item}")
+        
+        chosen_directory = choose_directory(contents)
         print("Changed to directory:", chosen_directory)
-        #go into VSWR directory
-        print("##### changing to VSWR directory #########")
-        os.chdir("VSWR/")
-        print("###### listing contents #######")
+        
+        os.chdir(os.path.join(dir_path, chosen_directory, "VSWR/"))
 
-        time.sleep(t)
-        subprocess.run(['ls', '-lt'])
+        print("############ VSWR Directory Content #################")
+        time.sleep(DELAY)
+        ls_output = subprocess.run(['ls', '-lt'], capture_output=True, text=True, check=True)
+        print(ls_output.stdout)
 
-        results_ans = input("would you like to open the results (y/n)? ")
-        #will have to tweak this as we have to look for 'FAIL' keyword with grep
-        if results_ans == 'y':
+        #converts character to lowercase based on input
+        results_ans = input("Would you like to open the results (y/n)? ")
+        if results_ans.lower() == 'y':
+            subprocess.run(["bash", bash_script_path])
+            #run the .eog command (potentially in the bash script)
 
-                command_1 = "cat log.txt | grep -i 'FAIL'; eog *.png"
-                subprocess.run(command_1, shell = True) #this will execute shell commands
-
-        elif results_ans == 'n':
+        #converts character to lowercase
+        elif results_ans.lower() == 'n':
             print("Ok exiting VSWR script...")
-            exit()
 
-    #error checkng if VSWR dir don't exist  
-    except FileNotFoundError:
-        print("Directory not found:", chosen_directory)
-else:
-    print("Error executing ls -lt command:", ls_output.stderr)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    main()
 
