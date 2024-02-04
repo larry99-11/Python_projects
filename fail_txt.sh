@@ -12,3 +12,5 @@ else
     rm fail.txt
     echo 'fail.txt was empty and has been removed!'
 fi
+
+# add eog command later on

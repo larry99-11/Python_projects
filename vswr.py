@@ -37,18 +37,6 @@ def choose_directory(contents):
         except ValueError:
             print("Invalid input. Please enter a number.")
 
- #Execute commands function
-def execute_commands(commands):
-    for command in commands:
-        subprocess.run(command, shell=True)
-
-#function to execute commands and capture output
-def execute_command_with_output(command):
-     result = subprocess.run(command, shell=True, capture_output=True, text=True)
-     if result.returncode == 0:
-        print(result.stdout)
-     else:
-         print(f"Error executing command: {result.stderr}") 
 
 def main():
     print("################## VSWR #################")
@@ -96,6 +84,7 @@ def main():
         #converts character to lowercase
         elif results_ans.lower() == 'n':
             print("Ok exiting VSWR script...")
+            exit()
 
     except Exception as e:
         print(f"An error occurred: {e}")
