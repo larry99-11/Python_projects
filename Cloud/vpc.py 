@@ -1,0 +1,94 @@
+import boto3
+import time 
+
+##############################################
+#
+# Author: EL Owusu
+#
+# creating VPC in AWS using python to interact with VPCs
+#creating mulitple VPCs for managing and creating diffrent enviroments 
+# 
+#################################################
+
+#create VPC, # when using VPC we'll be using ec2 resource or client 
+ec2 = boto3.client('ec2')
+vpc_name = 'dev-enviroment-vpc'
+
+#checks to see if we already have a VPC deployed with the defined vpc_name
+response = ec2.describe_vpcs(
+    Filters=[{'Name': 'tag:name', 'Values': [vpc_name]}]
+)
+vpcs = response.get('Vpcs', [])
+
+if vpcs:
+
+    vpc_id = vpcs[0]['VpcId']
+    print(f"VPC: {vpc_name} with ID {vpc_id} already exixts")
+
+else:
+
+    vpc_response = ec2.create_vpc(CidrBlock ='10.0.0.0/16') #passing in a cidr block
+    vpc_id = vpc_response['Vpc']['VpcId']
+    
+    time.sleep(5)
+
+    ec2.create_tags(Resources=[vpc_id], Tags=[{'Key': 'Name', 'Value': vpc_name}])
+
+    print(f"VPC: {vpc_name} with ID {vpc_id} has been created")
+
+######################################################################################################
+# Create internet gateway (so that we have access to the internet)
+
+internet_gateway = 'dev-enviroment-ig'
+
+response = ec2.describe_internet_gateways(
+    Filters=[{'Name': 'tag:name', 'Values': [internet_gateway]}]
+)
+
+ig = response.get('InternetGateways', [])
+
+if ig:
+
+    ig_id = ig[0]['InternetGatewayId']
+    print(f"Internet Gateway: {internet_gateway} with ID {ig_id} already exixts")
+
+else:
+
+    ig_response = ec2.create_internet_gateway()
+    ig_id = ig_response['InternetGateway']['InternetGatewayId']
+    
+
+    ec2.create_tags(Resources=[ig_id], Tags=[{'Key': 'Name', 'Value': internet_gateway}])
+    
+    #attaching internet gateway to our VPC
+    ec2.attach_internet_gateway(VpcId=vpc_id, InternetGatewayId=ig_id )
+    print(f"Internet Gateway: {internet_gateway} with ID {ig_id} has been created")
+
+# Create a route table and a public route to the internet
+
+route_table_response = ec2.create_route_table(VpcId=vpc_id) #pass in the vpc id 
+
+route_table_id = route_table_response['RouteTable']['RouteTableId']
+
+route = ec2.create_route(
+    RouteTableId =route_table_id,
+    DestinationCidrBlock ='0.0.0.0/0',
+    GatewayId =ig_id
+)
+
+print(f"Route Table with ID: {route_table_id} has been created")
+
+# Create 3 subnets
+
+subnet_1 = ec2.create_subnet(VpcId=vpc_id, CidrBlock='10.0.1.0/24', AvailabilityZone='us-east-1a')
+
+subnet_2 = ec2.create_subnet(VpcId=vpc_id, CidrBlock='10.0.2.0/24', AvailabilityZone='us-east-1b')
+
+subnet_3 = ec2.create_subnet(VpcId=vpc_id, CidrBlock='10.0.3.0/24', AvailabilityZone='us-east-1c')
+
+print(f"subnet_1 ID: '{subnet_1['Subnet']['SubnetId']}'")
+print(f"subnet_2 ID: '{subnet_2['Subnet']['SubnetId']}'")
+print(f"subnet_3 ID: '{subnet_3['Subnet']['SubnetId']}'")
+
+
+
