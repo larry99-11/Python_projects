@@ -1,0 +1,7 @@
+Resources:
+  ec2lambdaSnapshot02:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: ec2_lambda.lambda_handler
+      Runtime: python3.12
+      CodeUri: .
